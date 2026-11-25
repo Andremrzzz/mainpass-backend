@@ -7,8 +7,8 @@ spring:
 
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/acesso_qrcode?useSSL=false&allowPublicKeyRetrieval=true}
-    username: ${DB_USERNAME:acesso}
-    password: ${DB_PASSWORD:mainpass123}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:senaisp}
 
 mainpass:
   convite:

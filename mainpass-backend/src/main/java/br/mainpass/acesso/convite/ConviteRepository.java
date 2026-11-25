@@ -45,6 +45,22 @@ public interface ConviteRepository extends JpaRepository<Convite, Long> {
     @Query("select c from Convite c where c.id = :id")
     Optional<Convite> findDetalhadoById(@Param("id") Long id);
 
+    /* ------------------------------ Portaria ------------------------------ */
+
+    /** Todos os convites de um morador (mais recentes primeiro), com convidado e ambiente ja carregados (sem N+1). */
+    @EntityGraph(attributePaths = {"convidado", "ambiente"})
+    @Query("select c from Convite c where c.morador.id = :moradorId order by c.criadoEm desc")
+    List<Convite> findPorMoradorComPartes(@Param("moradorId") Long moradorId, Pageable pageable);
+
+    /** [moradorId, quantidade] de convites vigentes, em UMA consulta para a pagina inteira de moradores. */
+    @Query("""
+            select c.morador.id, count(c) from Convite c
+            where c.morador.id in :ids and c.status = :ativo and c.dataFim > :agora
+            group by c.morador.id
+            """)
+    List<Object[]> contarVigentesPorMorador(@Param("ids") java.util.Collection<Long> ids,
+                                            @Param("ativo") StatusConvite ativo, @Param("agora") Instant agora);
+
     /* ----------------------------- Convidado ----------------------------- */
 
     @EntityGraph(attributePaths = {"morador", "ambiente"})

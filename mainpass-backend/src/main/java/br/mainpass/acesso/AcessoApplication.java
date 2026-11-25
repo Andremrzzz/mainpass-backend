@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-public class AcessoApplication {
+public class          AcessoApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AcessoApplication.class, args);

@@ -31,6 +31,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/convidado/**").hasRole("CONVIDADO")
                     .requestMatchers("/api/convites/*/mensagens/**").hasAnyRole("USUARIO", "CONVIDADO")
                     .requestMatchers("/api/convites/**").hasRole("USUARIO")
+                    // Consulta de moradores/convidados: so portaria (OPERADOR) e ADMIN
+                    .requestMatchers("/api/portaria/**").hasAnyRole("OPERADOR", "ADMIN")
                     // Todo o resto continua exigindo login, mas CONVIDADO fica de fora por padrao:
                     // um novo endpoint nunca nasce acessivel ao convidado por esquecimento.
                     .anyRequest().hasAnyRole("ADMIN", "OPERADOR", "USUARIO"))
