@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: acesso-qrcode
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/acesso_qrcode?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:acesso}
+    password: ${DB_PASSWORD:mainpass123}
+
+mainpass:
+  convite:
+    token-secret: ${MAINPASS_CONVITE_TOKEN_SECRET:troque-essa-chave-secreta-em-producao-por-uma-bem-longa-e-aleatoria}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate        # o schema e responsabilidade do Flyway
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+app:
+  jwt:
+    # minimo 32 caracteres. Fora do desenvolvimento, defina via variavel de ambiente
+    secret: ${JWT_SECRET:troque-este-segredo-de-desenvolvimento-com-mais-de-32-caracteres}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  qrcode:
+    expiration-minutes: ${QRCODE_EXPIRATION_MINUTES:15}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173}

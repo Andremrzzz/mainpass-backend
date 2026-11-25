@@ -1,0 +1,9 @@
+# Perfil de desenvolvimento: alem das migrations oficiais, carrega os dados de exemplo (db/dev).
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev
+
+logging:
+  level:
+    br.edu.acesso: DEBUG
+    org.springframework.security: INFO

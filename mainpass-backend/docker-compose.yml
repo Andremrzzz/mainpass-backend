@@ -1,0 +1,41 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: acesso-qrcode-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-acesso_qrcode}
+      MYSQL_USER: ${DB_USER:-acesso}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-acesso123}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123}
+      TZ: UTC
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  api:
+    build: .
+    container_name: acesso-qrcode-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:mysql://db:3306/${DB_NAME:-acesso_qrcode}?useSSL=false&allowPublicKeyRetrieval=true
+      DB_USER: ${DB_USER:-acesso}
+      DB_PASSWORD: ${DB_PASSWORD:-acesso123}
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-local-com-pelo-menos-32-caracteres}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8080:8080"
+
+volumes:
+  db_data:
