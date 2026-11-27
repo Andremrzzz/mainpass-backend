@@ -62,3 +62,75 @@ Morador e `USUARIO`: defina `VITE_PERFIL_MORADOR=USUARIO` no `.env` (o default d
 | Morador (USUARIO) | `POST /api/convites` · `GET /api/convites?status=&page=&size=` · `GET /api/convites/{id}` · `PATCH /api/convites/{id}/cancelar` · `PATCH /api/convites/{id}/renovar` (extra) |
 | Convidado | `GET /api/convidado/perfil` · `GET /api/convidado/qrcodes` · `GET /api/convidado/entradas?page=&size=` · `POST /api/convidado/convites/{id}/solicitar-renovacao` |
 | Ambos | `GET /api/convites/{id}/mensagens?apos=` · `POST /api/convites/{id}/mensagens` · `PUT /api/convites/{id}/mensagens/lidas` (extra) |
+
+---
+
+## Portaria: moradores e convidados (`/api/portaria/**`)
+
+Novos arquivos em `portaria/` (repository, service, controller, 3 DTOs). Alterados: `ConviteRepository` (2 queries), `SecurityConfig` (`/api/portaria/**` → OPERADOR/ADMIN).
+
+| Endpoint | Descrição |
+|---|---|
+| `GET /api/portaria/moradores?q=&page=&size=` | Lista paginada (size máx. 100, ordem por nome). `q` busca nome, e-mail, bloco, unidade ou CPF (com/sem máscara). |
+| `GET /api/portaria/moradores/{id}` | Morador + convidados. |
+| `GET /api/portaria/moradores/{id}/convidados` | Somente convidados/convites. |
+
+Pontos de atenção:
+- Só aparecem usuários com `Perfil.USUARIO`; outro id → 404.
+- DTO sem `senhaHash` e sem token do convite. O CPF do convidado vai completo (a tela mascara).
+- `convitesVigentes` vem de uma única query agrupada (sem N+1); convites carregados com `JOIN FETCH` (sem LazyInitializationException).
+- Assume `Ambiente#getNome()`. Ajuste se o getter tiver outro nome.
+- Java não foi compilado neste ambiente (Maven Central bloqueado): rode `./mvnw compile` e me envie o que quebrar.
+
+---
+
+## Aprovação do convite pela portaria
+
+Fluxo: morador cria → **PENDENTE_APROVACAO** (sem QR) → porteiro **aprova** (ATIVO, QR liberado) ou **recusa** (RECUSADO, sem QR).
+Morador ainda pode cancelar um convite pendente (vira CANCELADO).
+
+**Migration `V6__aprovacao_convite_portaria.sql`** (rode antes de subir; `ddl-auto=validate`):
+- `convites.status` passa de `VARCHAR(15)` para `VARCHAR(20)` (PENDENTE_APROVACAO tem 18 caracteres) e o default vira `PENDENTE_APROVACAO`.
+- Novas colunas: `decidido_por_id` (FK `usuario`), `decidido_em`, `motivo_recusa`.
+- Convites já existentes **não mudam** (continuam ATIVO etc.).
+- Se a V4 já tiver sido aplicada em outro ambiente com CHECK em `status`, remova/ajuste o CHECK (na V4 original não há).
+
+**Endpoints novos** (somente OPERADOR/ADMIN, já cobertos por `/api/portaria/**` no `SecurityConfig` + `@PreAuthorize`):
+| Endpoint | Efeito |
+|---|---|
+| `GET /api/portaria/convites/pendentes` | fila (mais antigas primeiro, só dentro do prazo) |
+| `POST /api/portaria/convites/{id}/aprovar` | PENDENTE → ATIVO |
+| `POST /api/portaria/convites/{id}/recusar` | PENDENTE → RECUSADO; corpo opcional `{"motivo":"..."}` (máx. 255) |
+
+Erros: `404` inexistente, `409 SOLICITACAO_JA_DECIDIDA`, `409 SOLICITACAO_EXPIRADA` (prazo do convite já terminou). A decisão trava a linha (`PESSIMISTIC_WRITE`): duas decisões simultâneas não se sobrepõem.
+
+**Onde o QR/token é bloqueado**
+- `ConviteResponse` e `ConvidadoQrCodeResponse` só trazem `token` com status ATIVO (pendente/recusado/cancelado/expirado nunca).
+- `ConviteValidacaoService`: novos motivos `PENDENTE_APROVACAO` e `RECUSADO` (checados antes de cancelado/expirado/janela/ambiente; **nunca consomem uso**). Mesmo com um token válido forjado/vazado, a leitura é negada.
+- `ConviteAcessoService`: os dois motivos novos são mapeados por palavra-chave para o seu `MotivoRecusa` (PENDENT/APROV/NAO_AUTORIZ/INVALID e RECUS/NEGAD/NAO_AUTORIZ/INVALID). **Confira o log de subida**: ele mostra o mapeamento e avisa se algum motivo ficou sem constante.
+- Renovar convite pendente/recusado → `409 CONVITE_NAO_APROVADO`.
+- Limite de `20` solicitações pendentes por morador (`LIMITE_DE_SOLICITACOES`).
+
+**Pontos de atenção**
+- `auth.getName()` precisa ser o e-mail do usuário (mesma premissa dos outros controllers) para registrar quem decidiu.
+- O convidado já é cadastrado (com senha provisória, devolvida uma vez ao morador) no momento da criação; ele só enxerga o QR após a aprovação.
+- A lista de ambientes para o formulário do morador não existe no pacote: o front tenta `GET /api/ambientes` e, sem ele, usa `VITE_AMBIENTE_ID`.
+- O CORS do seu `SecurityConfig` precisa liberar `PATCH` (cancelar convite) se o front estiver em outra origem.
+
+---
+
+## Passo 1 — Cadastro público = CONVIDADO
+
+**Novos** (`auth/`): `CadastroRequest`, `CadastroResponse`, `CadastroService`, `CadastroController`.
+
+- `POST /api/auth/cadastro` (público) recebe `{nome, email, senha}`. **Não existe campo `perfil`**: o serviço fixa `Perfil.CONVIDADO` e `ativo=true`; qualquer `perfil` enviado no JSON é ignorado.
+- E-mail normalizado para minúsculas; duplicado → 409 `EMAIL_EM_USO` (inclusive em corrida, via `DataIntegrityViolationException`).
+- Senha: 8–72 caracteres com minúscula, maiúscula e número (igual ao front).
+- Sem CPF no cadastro (`usuario.cpf` fica `null`).
+
+**`SecurityConfig`**: `/api/auth/cadastro` em `permitAll`; `POST /api/usuarios/**` restrito a OPERADOR/ADMIN.
+
+### Verifique no seu projeto
+1. Se você já tem um endpoint de cadastro/registro público, force `Perfil.CONVIDADO` nele também (ou remova-o).
+2. O caminho `/api/usuarios` é suposição: ajuste ao controller real com que a portaria cria Morador e teste que continua funcionando.
+3. Java não foi compilado aqui (Maven Central bloqueado); rode `mvn -q compile`.

@@ -61,6 +61,16 @@ public interface ConviteRepository extends JpaRepository<Convite, Long> {
     List<Object[]> contarVigentesPorMorador(@Param("ids") java.util.Collection<Long> ids,
                                             @Param("ativo") StatusConvite ativo, @Param("agora") Instant agora);
 
+    /** Fila da portaria: solicitacoes ainda dentro do prazo, as mais antigas primeiro. Tudo carregado numa consulta. */
+    @EntityGraph(attributePaths = {"morador", "convidado", "ambiente"})
+    @Query("select c from Convite c where c.status = :pendente and c.dataFim > :agora order by c.criadoEm asc")
+    List<Convite> findPendentesDeAprovacao(@Param("pendente") StatusConvite pendente, @Param("agora") Instant agora,
+                                           Pageable pageable);
+
+    @EntityGraph(attributePaths = {"morador", "convidado", "ambiente"})
+    @Query("select c from Convite c where c.id = :id")
+    Optional<Convite> findComPartesById(@Param("id") Long id);
+
     /* ----------------------------- Convidado ----------------------------- */
 
     @EntityGraph(attributePaths = {"morador", "ambiente"})

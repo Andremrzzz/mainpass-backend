@@ -23,6 +23,19 @@ public interface RegistroAcessoRepository extends JpaRepository<RegistroAcesso, 
                                 @Param("de") Instant de,
                                 @Param("ate") Instant ate,
                                 Pageable pageable);
+
+    @Query("""
+        select r
+        from RegistroAcesso r
+        join r.qrCode qr
+        left join fetch r.ambiente
+        where r.usuario.id = :usuarioId
+          and qr.usuario.id = :usuarioId
+        """)
+    Page<RegistroAcesso> buscarEntradasDoConvidado(
+            @Param("usuarioId") Long usuarioId,
+            Pageable pageable
+    );
 }
 
 

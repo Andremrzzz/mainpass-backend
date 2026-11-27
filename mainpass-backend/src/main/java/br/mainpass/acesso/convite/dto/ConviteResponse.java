@@ -7,7 +7,7 @@ import java.time.Instant;
 
 /**
  * Visao do convite para o MORADOR.
- * {@code token} so vem preenchido enquanto o convite estiver ATIVO; {@code senhaProvisoria} so na criacao,
+ * {@code token} so vem preenchido enquanto o convite estiver ATIVO (aprovado pela portaria); {@code motivoRecusa} so quando RECUSADO; {@code senhaProvisoria} so na criacao,
  * quando um novo usuario CONVIDADO foi cadastrado (entregue uma unica vez).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -26,6 +26,7 @@ public record ConviteResponse(
         int usosMax,
         String observacao,
         Instant criadoEm,
+        String motivoRecusa,
         String token,
         String senhaProvisoria) {
 
@@ -46,12 +47,13 @@ public record ConviteResponse(
                 c.getUsosMax(),
                 c.getObservacao(),
                 c.getCriadoEm(),
+                status == StatusConvite.RECUSADO ? c.getMotivoRecusa() : null,
                 status == StatusConvite.ATIVO ? token : null,
                 null);
     }
 
     public ConviteResponse comSenhaProvisoria(String senha) {
         return new ConviteResponse(id, convidadoId, convidadoNome, convidadoEmail, convidadoTelefone, ambienteId,
-                ambienteNome, dataInicio, dataFim, status, usos, usosMax, observacao, criadoEm, token, senha);
+                ambienteNome, dataInicio, dataFim, status, usos, usosMax, observacao, criadoEm, motivoRecusa, token, senha);
     }
 }

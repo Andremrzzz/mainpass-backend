@@ -28,7 +28,7 @@ public class ConviteController {
         return service.criar(auth.getName(), req);
     }
 
-    /** Filtro opcional ?status=ATIVO|UTILIZADO|EXPIRADO|CANCELADO. A ordenacao e fixa (mais recentes primeiro). */
+    /** Filtro opcional ?status=PENDENTE_APROVACAO|RECUSADO|ATIVO|UTILIZADO|EXPIRADO|CANCELADO. A ordenacao e fixa (mais recentes primeiro). */
     @GetMapping
     public Page<ConviteResponse> listar(
             Authentication auth,

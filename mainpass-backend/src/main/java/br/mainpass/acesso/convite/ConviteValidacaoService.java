@@ -18,6 +18,8 @@ public class ConviteValidacaoService {
 
     public enum Motivo {
         TOKEN_INVALIDO,
+        PENDENTE_APROVACAO,
+        RECUSADO,
         CANCELADO,
         JA_UTILIZADO,
         EXPIRADO,
@@ -56,6 +58,11 @@ public class ConviteValidacaoService {
         }
 
         Instant agora = Instant.now();
+        // Convite ainda nao liberado pela portaria nunca passa (nem dentro do prazo)
+        if (c.getStatus() == StatusConvite.PENDENTE_APROVACAO && c.statusEfetivo(agora) != StatusConvite.EXPIRADO) {
+            return Resultado.negado(Motivo.PENDENTE_APROVACAO, c);
+        }
+        if (c.getStatus() == StatusConvite.RECUSADO) return Resultado.negado(Motivo.RECUSADO, c);
         if (c.getStatus() == StatusConvite.CANCELADO) return Resultado.negado(Motivo.CANCELADO, c);
         if (c.getStatus() == StatusConvite.UTILIZADO) return Resultado.negado(Motivo.JA_UTILIZADO, c);
         if (c.statusEfetivo(agora) == StatusConvite.EXPIRADO) return Resultado.negado(Motivo.EXPIRADO, c);

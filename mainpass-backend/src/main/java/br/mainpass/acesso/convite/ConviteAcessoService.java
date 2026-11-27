@@ -39,6 +39,8 @@ public class ConviteAcessoService {
 
     private static final Map<Motivo, String[]> PALAVRAS_MOTIVO = new EnumMap<>(Map.of(
             Motivo.TOKEN_INVALIDO, new String[]{"INVALID", "NAO_ENCONTR", "DESCONHEC"},
+            Motivo.PENDENTE_APROVACAO, new String[]{"PENDENT", "APROV", "NAO_AUTORIZ", "INVALID"},
+            Motivo.RECUSADO, new String[]{"RECUS", "NEGAD", "NAO_AUTORIZ", "INVALID"},
             Motivo.CANCELADO, new String[]{"CANCEL", "REVOG", "INATIV", "INVALID"},
             Motivo.JA_UTILIZADO, new String[]{"UTILIZ", "USAD", "LIMITE", "INVALID"},
             Motivo.EXPIRADO, new String[]{"EXPIR", "VENC"},

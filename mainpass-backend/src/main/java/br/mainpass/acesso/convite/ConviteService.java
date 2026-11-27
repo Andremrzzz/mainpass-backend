@@ -24,6 +24,7 @@ public class ConviteService {
     static final Duration JANELA_MAXIMA = Duration.ofDays(30);
     static final Duration TOLERANCIA_INICIO = Duration.ofMinutes(5);
     static final int MAX_CONVITES_VIGENTES = 20;
+    static final int MAX_SOLICITACOES_PENDENTES = 20;
     static final int TAMANHO_MAXIMO_PAGINA = 50;
 
     private final ConviteRepository convites;
@@ -67,10 +68,15 @@ public class ConviteService {
             throw ConviteException.regra(HttpStatus.CONFLICT, "LIMITE_DE_CONVITES", "Limite de convites ativos atingido");
         }
 
+        if (convites.countByMoradorIdAndStatusAndDataFimAfter(morador.getId(), StatusConvite.PENDENTE_APROVACAO, agora) >= MAX_SOLICITACOES_PENDENTES) {
+            throw ConviteException.regra(HttpStatus.CONFLICT, "LIMITE_DE_SOLICITACOES", "Voce ja tem muitas solicitacoes aguardando a portaria");
+        }
+
         var convidado = provisioner.obterOuCriar(req.convidado());
         String observacao = req.observacao() == null || req.observacao().isBlank() ? null : req.observacao().trim();
         int usosMax = req.usosMax() == null ? 1 : req.usosMax();
 
+        // Nasce PENDENTE_APROVACAO: o QR Code so e liberado quando a portaria aprovar.
         Convite convite = convites.save(new Convite(morador, convidado.usuario(), ambiente, inicio, fim, usosMax, observacao));
         return paraResposta(convite, agora).comSenhaProvisoria(convidado.senhaProvisoria());
     }
@@ -104,8 +110,8 @@ public class ConviteService {
         Convite convite = doMorador(login, id);
         Instant agora = Instant.now();
         StatusConvite atual = convite.statusEfetivo(agora);
-        if (atual == StatusConvite.UTILIZADO || atual == StatusConvite.EXPIRADO) {
-            throw ConviteException.regra(HttpStatus.CONFLICT, "CONVITE_ENCERRADO", "Convites utilizados ou expirados nao podem ser cancelados");
+        if (atual == StatusConvite.UTILIZADO || atual == StatusConvite.EXPIRADO || atual == StatusConvite.RECUSADO) {
+            throw ConviteException.regra(HttpStatus.CONFLICT, "CONVITE_ENCERRADO", "Convites utilizados, expirados ou recusados nao podem ser cancelados");
         }
         convite.cancelar(agora); // idempotente para convites ja cancelados
         return paraResposta(convite, agora);
@@ -118,6 +124,10 @@ public class ConviteService {
         Instant agora = Instant.now();
         if (convite.getStatus() == StatusConvite.CANCELADO) {
             throw ConviteException.regra(HttpStatus.CONFLICT, "CONVITE_CANCELADO", "Convite cancelado nao pode ser renovado");
+        }
+        if (convite.getStatus() == StatusConvite.PENDENTE_APROVACAO || convite.getStatus() == StatusConvite.RECUSADO) {
+            throw ConviteException.regra(HttpStatus.CONFLICT, "CONVITE_NAO_APROVADO",
+                    "Somente convites aprovados pela portaria podem ser renovados");
         }
         Instant novoFim = req.dataFim();
         if (!novoFim.isAfter(agora) || !novoFim.isAfter(convite.getDataFim())) {

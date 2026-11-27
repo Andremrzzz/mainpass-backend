@@ -82,5 +82,4 @@ public class PortariaMoradorService {
                 .filter(u -> u.getPerfil() == Perfil.USUARIO)
                 .orElseThrow(() -> new ResourceNotFoundException("Morador nao encontrado"));
     }
-
 }

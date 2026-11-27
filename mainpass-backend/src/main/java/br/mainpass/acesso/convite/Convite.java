@@ -34,8 +34,8 @@ public class Convite {
     private Instant dataFim;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 15)
-    private StatusConvite status = StatusConvite.ATIVO;
+    @Column(nullable = false, length = 20)
+    private StatusConvite status = StatusConvite.PENDENTE_APROVACAO;
 
     @Column(nullable = false)
     private int usos;
@@ -51,6 +51,17 @@ public class Convite {
 
     @Column(name = "cancelado_em")
     private Instant canceladoEm;
+
+    /** Porteiro/admin que aprovou ou recusou. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "decidido_por_id")
+    private Usuario decididoPor;
+
+    @Column(name = "decidido_em")
+    private Instant decididoEm;
+
+    @Column(name = "motivo_recusa", length = 255)
+    private String motivoRecusa;
 
     protected Convite() {
     }
@@ -73,9 +84,12 @@ public class Convite {
         }
     }
 
-    /** Estado que o cliente deve ver: ATIVO vencido aparece como EXPIRADO, sem precisar de job. */
+    /**
+     * Estado que o cliente deve ver: ATIVO (ou solicitacao ainda pendente) com a janela encerrada aparece
+     * como EXPIRADO, sem precisar de job.
+     */
     public StatusConvite statusEfetivo(Instant agora) {
-        if (status == StatusConvite.ATIVO && !agora.isBefore(dataFim)) {
+        if ((status == StatusConvite.ATIVO || status == StatusConvite.PENDENTE_APROVACAO) && !agora.isBefore(dataFim)) {
             return StatusConvite.EXPIRADO;
         }
         return status;
@@ -87,6 +101,22 @@ public class Convite {
         if (usos >= usosMax) {
             status = StatusConvite.UTILIZADO;
         }
+    }
+
+    /** Portaria libera o QR Code. So vale para solicitacoes pendentes (a checagem de estado fica no service). */
+    public void aprovar(Usuario porteiro, Instant agora) {
+        status = StatusConvite.ATIVO;
+        decididoPor = porteiro;
+        decididoEm = agora;
+        motivoRecusa = null;
+    }
+
+    /** Portaria nega a solicitacao: o QR Code nunca sera liberado. */
+    public void recusar(Usuario porteiro, String motivo, Instant agora) {
+        status = StatusConvite.RECUSADO;
+        decididoPor = porteiro;
+        decididoEm = agora;
+        motivoRecusa = motivo;
     }
 
     /** Idempotente. */
@@ -119,4 +149,7 @@ public class Convite {
     public String getObservacao() { return observacao; }
     public Instant getCriadoEm() { return criadoEm; }
     public Instant getCanceladoEm() { return canceladoEm; }
+    public Usuario getDecididoPor() { return decididoPor; }
+    public Instant getDecididoEm() { return decididoEm; }
+    public String getMotivoRecusa() { return motivoRecusa; }
 }

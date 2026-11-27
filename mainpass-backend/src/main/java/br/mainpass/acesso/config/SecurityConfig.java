@@ -2,6 +2,7 @@ package br.mainpass.acesso.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,8 +26,11 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable).cors(Customizer.withDefaults())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/login", "/v3/api-docs/**",
+                    .requestMatchers("/api/auth/login", "/api/auth/cadastro", "/v3/api-docs/**",
                             "/swagger-ui/**", "/swagger-ui.html", "/actuator/health").permitAll()
+                    // Criar contas pelo cadastro de usuarios e exclusivo da portaria/admin. O auto-cadastro
+                    // (/api/auth/cadastro) so cria CONVIDADO. Ajuste o caminho se o seu controller for outro.
+                    .requestMatchers(HttpMethod.POST, "/api/usuarios", "/api/usuarios/**").hasAnyRole("OPERADOR", "ADMIN")
                     // Area do convidado e chat do convite (a autorizacao fina por convite fica no service)
                     .requestMatchers("/api/convidado/**").hasRole("CONVIDADO")
                     .requestMatchers("/api/convites/*/mensagens/**").hasAnyRole("USUARIO", "CONVIDADO")
